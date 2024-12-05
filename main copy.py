@@ -226,3 +226,42 @@ def main():
 
 if __name__ == '__main__':
     main()
+sync def set_perform(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+
+    # Fetch exercise details
+    exercise_name = context.user_data.get("current_exercise", "Unknown Exercise")
+    exercise_config = EXERCISE_CONFIG.get(exercise_name, {})
+    total_sets = exercise_config.get("sets", 3)  # Default to 3 sets if not specified
+    reps = max(exercise_config.get("reps", [8, 10]))  # Default reps
+    print(query)
+
+    # Track the current set
+    current_set = context.user_data.get("current_set", 1)
+
+    if current_set <= total_sets:
+        # Prepare message for the current set
+        text = (
+            f"Set {current_set}/{total_sets}\n"
+            f"Target: {reps} reps!\n"
+            f"Exercise: {exercise_name.replace('_', ' ').title()}"
+        )
+        keyboard = [[InlineKeyboardButton(f"Set {current_set} done!", callback_data="set_done")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+        # Update the current set for the next call
+        context.user_data["current_set"] = current_set + 1
+        return PUSH_WORKOUT
+    else:
+        # If all sets are completed
+        keyboard = [[InlineKeyboardButton("Go to next exercise")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        text = f"All {total_sets} sets completed for {exercise_name.replace('_', ' ').title()}! Well done!"
+        await query.edit_message_text(text, reply_markup=reply_markup)
+        context.user_data["current_set"] = 1  # Reset for future use
+
+        return MENU
+
